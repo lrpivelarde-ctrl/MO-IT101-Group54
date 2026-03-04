@@ -179,11 +179,9 @@ public class MotorPH {
                 // gross = total hours × hourly rate
                 double grossFirstCutoff = hoursFirstCutoff * hourlyRate;
 
-                // late deduction computed from login time (after 8:10 grace)
-                double lateDedFirstCutoff = getLateDeduction(employeeNumber, month, 1, 15, hourlyRate);
-
-                // net for first cutoff = gross minus late deduction only
-                double netFirstCutoff = grossFirstCutoff - lateDedFirstCutoff;
+                // NOTE: no separate late deduction line; lateness is already handled in computeHours()
+                // net for first cutoff = gross (no gov deductions yet)
+                double netFirstCutoff = grossFirstCutoff;
 
                 //DISPLAY FIRST CUTOFF OUTPUT
                 System.out.println("\nCutoff Date: " + monthName(month) + " 1 to 15");
@@ -198,20 +196,14 @@ public class MotorPH {
                 // gross = total hours × hourly rate
                 double grossSecondCutoff = hoursSecondCutoff * hourlyRate;
 
-                // late deduction computed from login time (after 8:10 grace)
-                double lateDedSecondCutoff = getLateDeduction(employeeNumber, month, 16, daysInMonth, hourlyRate);
-
                 //DISPLAY SECOND CUTOFF BASIC OUTPUT (BEFORE GOV DEDUCTIONS)
                 System.out.println("\nCutoff Date: " + monthName(month) + " 16 to " + daysInMonth);
                 System.out.println("Total Hours Worked: " + hoursSecondCutoff);
                 System.out.println("Gross Salary: " + grossSecondCutoff);
 
-                // second cutoff net before gov deductions = gross minus late deduction only
-                double netSecondBeforeGov = grossSecondCutoff - lateDedSecondCutoff;
-
                 // GOV DEDUCTION MONTHLY BASIS
-                //add 1st cutoff net + 2nd cutoff net first before computing gov deductions
-                double monthlyNetBasis = netFirstCutoff + netSecondBeforeGov;
+                // add 1st cutoff amount + 2nd cutoff amount first before computing gov deductions
+                double monthlyNetBasis = netFirstCutoff + grossSecondCutoff;
 
                 // MANDATORY DEDUCTIONS
                 // SSS based on bracket table
@@ -232,8 +224,8 @@ public class MotorPH {
                 // total of deductions
                 double totalDeductions = sss + philHealth + pagIbig + withholdingTax;
 
-                // final net salary (released on 2nd cutoff) = netSecondBeforeGov minus total deductions
-                double netSecondCutoff = netSecondBeforeGov - totalDeductions;
+                // final net salary (released on 2nd cutoff) = 2nd cutoff gross minus total deductions
+                double netSecondCutoff = grossSecondCutoff - totalDeductions;
 
                 // DISPLAY DEDUCTIONS AND FINAL NET (2ND CUTOFF)
                 System.out.println("Each Deduction:");
@@ -358,8 +350,9 @@ public class MotorPH {
                     // first cutoff
                     double hoursFirstCutoff = getTotalHours(employeeNumber, month, 1, 15);
                     double grossFirstCutoff = hoursFirstCutoff * hourlyRate;
-                    double lateDedFirstCutoff = getLateDeduction(employeeNumber, month, 1, 15, hourlyRate);
-                    double netFirstCutoff = grossFirstCutoff - lateDedFirstCutoff;
+
+                    // NOTE: no separate late deduction line; lateness is already handled in computeHours()
+                    double netFirstCutoff = grossFirstCutoff;
 
                     System.out.println("\nCutoff Date: " + monthName(month) + " 1 to 15");
                     System.out.println("Total Hours Worked: " + hoursFirstCutoff);
@@ -369,15 +362,13 @@ public class MotorPH {
                     // second cutoff
                     double hoursSecondCutoff = getTotalHours(employeeNumber, month, 16, daysInMonth);
                     double grossSecondCutoff = hoursSecondCutoff * hourlyRate;
-                    double lateDedSecondCutoff = getLateDeduction(employeeNumber, month, 16, daysInMonth, hourlyRate);
 
                     System.out.println("\nCutoff Date: " + monthName(month) + " 16 to " + daysInMonth);
                     System.out.println("Total Hours Worked: " + hoursSecondCutoff);
                     System.out.println("Gross Salary: " + grossSecondCutoff);
 
                     // monthly basis + deductions
-                    double netSecondBeforeGov = grossSecondCutoff - lateDedSecondCutoff;
-                    double monthlyNetBasis = netFirstCutoff + netSecondBeforeGov;
+                    double monthlyNetBasis = netFirstCutoff + grossSecondCutoff;
 
                     double sss = getSSS(monthlyNetBasis);
                     double philHealth = getPhilHealth(monthlyNetBasis);
@@ -387,7 +378,8 @@ public class MotorPH {
                     double withholdingTax = getWithholdingTax(taxableIncome);
 
                     double totalDeductions = sss + philHealth + pagIbig + withholdingTax;
-                    double netSecondCutoff = netSecondBeforeGov - totalDeductions;
+
+                    double netSecondCutoff = grossSecondCutoff - totalDeductions;
 
                     System.out.println("Each Deduction:");
                     System.out.println("    SSS: " + sss);
@@ -493,70 +485,6 @@ public class MotorPH {
         if (hours > 8.0) hours = 8.0;
 
         return hours;
-    }
-
-    static double getLateDeduction(String employeeNumber, int month, int dayStart, int dayEnd, double hourlyRate) {
-
-        double totalLateDeduction = 0;
-
-        // open attendance file and scan rows
-        try (BufferedReader br = new BufferedReader(new FileReader(ATTENDANCE_FILE))) {
-
-            // skip header row
-            br.readLine();
-
-            String line;
-
-            // loop through attendance records
-            while ((line = br.readLine()) != null) {
-
-                // ignore blank lines
-                if (line.trim().isEmpty()) continue;
-
-                // split columns
-                String[] data = line.split(",");
-
-                // keep only selected employee
-                if (!data[0].trim().equals(employeeNumber)) continue;
-
-                // parse date (MM/DD/YYYY)
-                String[] dateParts = data[3].trim().split("/");
-                int recordMonth = Integer.parseInt(dateParts[0]);
-                int recordDay = Integer.parseInt(dateParts[1]);
-                int recordYear = Integer.parseInt(dateParts[2]);
-
-                // keep only year 2024
-                if (recordYear != 2024) continue;
-
-                // keep only selected month
-                if (recordMonth != month) continue;
-
-                // keep only day range of cutoff
-                if (recordDay < dayStart || recordDay > dayEnd) continue;
-
-                // parse login time
-                LocalTime login = LocalTime.parse(data[4].trim(), TIME_FORMAT);
-
-                // constants for lateness
-                LocalTime startTime = LocalTime.of(8, 0);
-                LocalTime graceTime = LocalTime.of(8, 10);
-
-                // not late if login is within grace
-                if (!login.isAfter(graceTime)) continue;
-
-                // late minutes counted from 8:00 to actual login
-                long lateMinutes = Duration.between(startTime, login).toMinutes();
-
-                // convert late minutes to money deduction using hourly rate
-                totalLateDeduction += (lateMinutes / 60.0) * hourlyRate;
-            }
-
-        } catch (Exception e) {
-            System.out.println("ERROR: " + e.getMessage());
-        }
-
-
-        return totalLateDeduction;
     }
 
     // DEDUCTION FUNCTIONS
