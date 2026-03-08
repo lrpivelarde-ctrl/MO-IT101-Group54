@@ -4,7 +4,7 @@ Paul Isaac Velarde - Programmer
 
 PROGRAM DETAILS:
 
-The MotorPH Payroll System is a Java application that processes employee payroll using data from CSV files. The program reads employee information and attendance records, calculates the total hours worked, determines the gross salary, applies mandatory deductions, and displays the payroll details of employees.
+MotorPH is a console-based automatic payroll system developed in Java that processes employee payroll using data from CSV files. The program reads employee information and attendance records, calculates the total hours worked, determines the gross salary, applies mandatory deductions, and displays the payroll details of employees.
 
 PROJECT PLAN LINK:
 
