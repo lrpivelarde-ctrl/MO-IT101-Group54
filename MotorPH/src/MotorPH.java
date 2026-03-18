@@ -154,7 +154,7 @@ public class MotorPH {
 
                     if (line.trim().isEmpty()) continue;
 
-                    String[] employeeRow = line.split(",");
+                    String[] employeeRow = line.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
 
                     // Rows with incomplete employee data are skipped.
                     if (employeeRow.length < 4) continue;
@@ -186,7 +186,7 @@ public class MotorPH {
 
                 if (line.trim().isEmpty()) continue;
 
-                String[] data = line.split(",");
+                String[] data = line.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
 
                 // Rows with incomplete employee data are skipped.
                 if (data.length < 4) continue;
@@ -379,7 +379,7 @@ public class MotorPH {
                 total += computeHours(login, logout);
 
             } catch (Exception e) {
-                // Invalid attendance rows are skipped so the program can continue running.
+                System.err.println("Skipping malformed attendance row.");
             }
         }
 
@@ -424,8 +424,9 @@ public class MotorPH {
     }
 
     /**
-     * Computes the SSS employee contribution
-     * based on the monthly salary bracket table.
+     * Computes SSS contribution based on salary brackets.
+     * The numeric values in the arrays represent salary thresholds
+     * and fixed contribution amounts based on the predefined SSS table used in this system for 2024.
      */
     static double getSSS(double salary) {
 
@@ -456,6 +457,7 @@ public class MotorPH {
             if (salary <= limit[i]) return contribution[i];
         }
 
+        // Maximum SSS contribution for salaries above the highest bracket.
         return 1125;
     }
 
@@ -494,8 +496,11 @@ public class MotorPH {
     }
 
     /**
-     * Computes withholding tax
-     * based on the progressive tax brackets.
+     * Computes withholding tax using progressive tax brackets.
+     * The numeric values (e.g., 20833, 33333) represent income thresholds,
+     * while values like 0.20, 0.25, etc. represent the tax rates applied
+     * to each income range.
+     * These values are based on a predefined tax table used in this system for 2024.
      */
     static double getWithholdingTax(double income) {
 
